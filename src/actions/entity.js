@@ -136,23 +136,43 @@ export function getClipboardRepresentation (entity) {
   entity.flushToDOM();
   var clone = entity.cloneNode(true);
 
-  function removeDefaultAttributes (element) {
-    for (let i = 0; i < element.childNodes.length; i++) {
-      var child = element.childNodes[i];
+  removeDefaultAttributes(clone);
+  removeNotModifiedMixedinAttributes(entity, clone);
+  return clone.outerHTML;
+
+  function removeDefaultAttributes (el) {
+    for (let i = 0; i < el.childNodes.length; i++) {
+      var child = el.childNodes[i];
       if (child.isEntity) {
         removeDefaultAttributes(child);
       }
     }
 
     for (let i = 0; i < DEFAULT_COMPONENTS.length; i++) {
-      if (element.getAttribute(DEFAULT_COMPONENTS[i]).length === 0) {
-        element.removeAttribute(DEFAULT_COMPONENTS[i]);
+      if (el.getAttribute(DEFAULT_COMPONENTS[i]).length === 0) {
+        el.removeAttribute(DEFAULT_COMPONENTS[i]);
       }
     }
   }
 
-  removeDefaultAttributes(clone);
-  return clone.outerHTML;
+  function removeNotModifiedMixedinAttributes (entity, clonedEntity) {
+    var mixinEls = entity.mixinEls;
+    mixinEls.forEach(function removeIfNoModified (mixinEl) {
+      var attributes = mixinEl.attributes;
+      var attrName;
+      var components = entity.components;
+      var componentAttrValue;
+      for (var i = 0; i < attributes.length; i++) {
+        attrName = attributes[i].name;
+        componentAttrValue = HTMLElement.prototype.getAttribute.call(entity, attrName);
+        // Not a component
+        if (!entity.components[attrName]) { continue; }
+        // Value of the component has not changed
+        if (componentAttrValue && componentAttrValue !== attributes[i].value) { continue; }
+        clonedEntity.removeAttribute(attrName);
+      }
+    });
+  }
 }
 
 /**
